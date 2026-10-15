@@ -1,0 +1,122 @@
+
+{% extends "base.html" %}
+
+{% block title %}Overview{% endblock %}
+{% block page_heading %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<div class="welcome-row">
+    <div>
+        <h1>Workforce overview</h1>
+        <p>Monitor your people, projects, and available capacity.</p>
+    </div>
+    <span class="live-label">● Database connected</span>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for label, value, note in [
+        ("Total employees", stats.employees, "Registered workforce"),
+        ("Active projects", stats.projects, "Planning and active"),
+        ("Available talent", stats.available, "Potential capacity"),
+        ("Workload alerts", stats.alerts, "Employees at 80%+ workload")
+    ] %}
+    <div class="col-6 col-xl-3">
+        <div class="metric-card">
+            <div class="metric-top">{{ label }}</div>
+            <div class="metric-value">{{ value }}</div>
+            <div class="metric-note">{{ note }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-xl-7">
+        <div class="panel-card h-100">
+            <div class="panel-heading">
+                <div>
+                    <h2>Project staffing</h2>
+                    <p>Staffing against planned team size</p>
+                </div>
+                <a href="/projects" class="text-link">View projects →</a>
+            </div>
+
+            {% for project in projects %}
+                {% set staffing_pct = (project.assigned_count * 100 / project.team_size)|int if project.team_size > 0 else 0 %}
+                {% set staffing_pct = [staffing_pct, 100]|min %}
+
+                <div class="project-row">
+                    <div class="project-info">
+                        <strong>{{ project.name }}</strong>
+                        <span>{{ project.assigned_count }} / {{ project.team_size }} members</span>
+                    </div>
+
+                    <div class="progress"
+                         role="progressbar"
+                         aria-label="Project staffing progress"
+                         aria-valuenow="{{ staffing_pct }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="progress-bar"
+                             data-width="{{ staffing_pct }}">
+                        </div>
+                    </div>
+
+                    <div class="project-meta">
+                        <span>{{ project.status }}</span>
+                        <span>{{ [project.team_size - project.assigned_count, 0]|max }} seats to fill</span>
+                    </div>
+                </div>
+            {% else %}
+                <p>No projects available.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="panel-card h-100">
+            <div class="panel-heading">
+                <div>
+                    <h2>Workload watchlist</h2>
+                    <p>Employees with the highest workloads</p>
+                </div>
+                <a href="/employees" class="text-link">All employees →</a>
+            </div>
+
+            {% for employee in employees %}
+                <div class="employee-row">
+                    <div class="avatar">{{ employee.name[:1] }}</div>
+
+                    <div class="employee-info">
+                        <strong>{{ employee.name }}</strong>
+                        <span>{{ employee.role }}</span>
+                    </div>
+
+                    <strong>{{ employee.workload_pct }}%</strong>
+                </div>
+            {% else %}
+                <p>No employees available.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="next-step-banner mt-4">
+    <div>
+        <strong>Ready to plan your workforce?</strong>
+        <p>Review employee skills and project requirements.</p>
+    </div>
+    <a href="/employees" class="btn btn-primary">Explore employees</a>
+</div>
+
+<script>
+    document.querySelectorAll(".progress-bar[data-width]").forEach(function (bar) {
+        const value = Number(bar.dataset.width);
+        const percentage = Number.isFinite(value)
+            ? Math.max(0, Math.min(100, value))
+            : 0;
+
+        bar.style.width = percentage + "%";
+    });
+</script>
+{% endblock %}

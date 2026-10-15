@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Workforce Analytics{% endblock %}
+{% block page_heading %}Workforce Analytics{% endblock %}
+{% block content %}
+<div class="analytics-page">
+  <div class="feature-page-header"><div><h1>Workforce Analytics</h1><p>Database-driven snapshots of workforce load, skill distribution and project staffing.</p></div></div>
+  <div class="feature-stats-grid">
+    <article class="feature-stat"><span>Total employees</span><strong>{{ employee_count }}</strong></article>
+    <article class="feature-stat"><span>Active projects</span><strong>{{ project_count }}</strong></article>
+    <article class="feature-stat"><span>Active assignments</span><strong>{{ assignment_count }}</strong></article>
+  </div>
+  <div class="analytics-grid">
+    <section class="panel-card"><div class="panel-heading"><div><h2>Workload vs availability</h2><p>Employee-level percentages from the database.</p></div></div><div class="chart-container"><canvas id="workloadChart" aria-label="Workload and availability chart"></canvas></div></section>
+    <section class="panel-card"><div class="panel-heading"><div><h2>Most common skills</h2><p>Number of employees with each skill.</p></div></div><div class="chart-container"><canvas id="skillsChart" aria-label="Employee skill distribution chart"></canvas></div></section>
+    <section class="panel-card analytics-wide"><div class="panel-heading"><div><h2>Project staffing</h2><p>Active assigned members compared with each project's target team size.</p></div></div><div class="chart-container chart-container-wide"><canvas id="staffingChart" aria-label="Project staffing chart"></canvas></div></section>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(() => {
+  const workloadData = {{ workload_chart|tojson }};
+  const skillsData = {{ skills_chart|tojson }};
+  const staffingData = {{ staffing_chart|tojson }};
+  const commonOptions = { responsive: true, maintainAspectRatio: false };
+  const workloadCanvas = document.getElementById("workloadChart");
+  if (workloadCanvas) new Chart(workloadCanvas, {
+    type: "bar",
+    data: { labels: workloadData.map(x => x.name), datasets: [
+      { label: "Workload %", data: workloadData.map(x => x.workload) },
+      { label: "Availability %", data: workloadData.map(x => x.availability) }
+    ]},
+    options: { ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }
+  });
+  const skillsCanvas = document.getElementById("skillsChart");
+  if (skillsCanvas) new Chart(skillsCanvas, {
+    type: "bar",
+    data: { labels: skillsData.map(x => x.skill), datasets: [
+      { label: "Employees", data: skillsData.map(x => x.count) }
+    ]},
+    options: { ...commonOptions, indexAxis: "y", scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+  const staffingCanvas = document.getElementById("staffingChart");
+  if (staffingCanvas) new Chart(staffingCanvas, {
+    type: "bar",
+    data: { labels: staffingData.map(x => x.project), datasets: [
+      { label: "Assigned", data: staffingData.map(x => x.assigned) },
+      { label: "Target team size", data: staffingData.map(x => x.target) }
+    ]},
+    options: { ...commonOptions, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+})();
+</script>
+<style>
+.analytics-page{width:100%;min-width:0}.analytics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.analytics-grid>.panel-card{min-width:0}.analytics-wide{grid-column:1/-1}.chart-container{position:relative;width:100%;height:300px;max-width:100%}.chart-container-wide{height:320px}.analytics-page .feature-stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:850px){.analytics-grid{grid-template-columns:1fr}.analytics-wide{grid-column:auto}}@media(max-width:600px){.analytics-page .feature-stats-grid{grid-template-columns:1fr 1fr}.chart-container{height:280px}.analytics-page .panel-card{padding:15px}}
+</style>
+{% endblock %}

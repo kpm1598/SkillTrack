@@ -1,0 +1,360 @@
+
+{% extends "base.html" %}
+
+{% block title %}Employees | SkillTrack{% endblock %}
+{% block page_title %}Employee Directory{% endblock %}
+
+{% block content %}
+
+<div class="employee-page">
+    <div class="employee-page-header">
+        <div>
+            <h2>Our Employees</h2>
+            <p>Manage profiles, skills, workload and project assignments.</p>
+        </div>
+        <a href="{{ url_for('new_employee') }}" class="btn btn-primary">
+            + Add Employee
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show"
+                     role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close"
+                            data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card border-0 shadow-sm employee-directory-card">
+        <div class="card-body">
+            <div class="employee-toolbar">
+                <input type="search" id="employeeSearch"
+                       class="form-control employee-search"
+                       placeholder="Search by name, role or skill..."
+                       aria-label="Search employees">
+
+                <div class="employee-count">
+                    Total employees: {{ employees|length }}
+                </div>
+            </div>
+
+            <div class="employee-table-scroll">
+                <table class="table employee-table">
+                    <colgroup>
+                        <col class="col-employee">
+                        <col class="col-skills">
+                        <col class="col-experience">
+                        <col class="col-availability">
+                        <col class="col-workload">
+                        <col class="col-employee-projects">
+                        <col class="col-actions">
+                    </colgroup>
+
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Skills</th>
+                            <th>Experience</th>
+                            <th>Availability</th>
+                            <th>Workload</th>
+                            <th>Projects</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="employeeTable">
+                        {% for employee in employees %}
+                        <tr class="employee-row">
+                            <td>
+                                <div class="employee-name">{{ employee.name }}</div>
+                                <div class="employee-role">{{ employee.role }}</div>
+                            </td>
+
+                            <td>
+                                <div class="employee-skills">
+                                    {% if employee.skills %}
+                                        {% for skill in employee.skills.split(',') %}
+                                            <span class="skill-chip">{{ skill.strip() }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-secondary">No skills</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td>{{ employee.experience_years }} years</td>
+
+                            <td>
+                                <div class="metric-value">{{ employee.availability_pct }}%</div>
+                                <div class="employee-progress-track">
+                                    <div class="employee-progress-fill availability-fill"
+                                         data-width="{{ employee.availability_pct }}"></div>
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="metric-value">{{ employee.workload_pct }}%</div>
+                                <div class="employee-progress-track">
+                                    <div class="employee-progress-fill
+                                        {% if employee.workload_pct >= 80 %}
+                                            workload-high
+                                        {% elif employee.workload_pct >= 60 %}
+                                            workload-medium
+                                        {% else %}
+                                            workload-low
+                                        {% endif %}"
+                                         data-width="{{ employee.workload_pct }}"></div>
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="employee-assignment-list">
+                                    {% set employee_assignments = assignments_by_employee.get(employee.id, []) %}
+
+                                    {% if employee_assignments %}
+                                        {% for assignment in employee_assignments %}
+                                            <div class="employee-assignment-item">
+                                                <span class="employee-assignment-name">
+                                                    {{ assignment.project_name }}
+                                                </span>
+                                                <span class="employee-assignment-meta">
+                                                    {{ assignment.allocation_pct }}% · {{ assignment.status }}
+                                                </span>
+                                                <form method="POST"
+                                                      action="{{ url_for('delete_assignment', assignment_id=assignment.id) }}"
+                                                      onsubmit="return confirm('Remove this employee from the project?');">
+                                                    <button type="submit"
+                                                            class="assignment-remove-btn"
+                                                            title="Remove assignment"
+                                                            aria-label="Remove assignment">×</button>
+                                                </form>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-secondary small">Not assigned</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td>
+                                <div class="employee-actions">
+                                    <a href="{{ url_for('edit_employee', employee_id=employee.id) }}"
+                                       class="btn btn-sm employee-edit-btn">
+                                        Edit
+                                    </a>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary js-assign-project"
+                                            data-employee-id="{{ employee.id }}"
+                                            data-employee-name="{{ employee.name }}">
+                                        Assign
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('delete_employee', employee_id=employee.id) }}"
+                                          onsubmit="return confirm('Permanently delete this employee?');">
+                                        <button type="submit"
+                                                class="btn btn-sm employee-delete-btn">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-secondary py-4">
+                                No employees found. Click Add Employee to create one.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="noSearchResults" class="employee-no-results" hidden>
+                No employees match your search.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Assign project dialog -->
+<div id="assignProjectDialog"
+     class="custom-confirm-backdrop"
+     hidden
+     aria-hidden="true">
+
+    <section class="custom-confirm-dialog assignment-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="assignProjectTitle">
+
+        <div class="assignment-dialog-icon">↗</div>
+        <h2 id="assignProjectTitle">Assign project</h2>
+        <p>Choose a project and define this employee's allocation.</p>
+
+        {% if projects %}
+        <form method="POST" action="{{ url_for('create_assignment') }}"
+              id="assignProjectForm">
+
+            <input type="hidden" name="employee_id" id="assignmentEmployeeId">
+
+            <div class="mb-3 text-start">
+                <label for="assignmentEmployeeName" class="form-label">
+                    Employee
+                </label>
+                <input type="text" id="assignmentEmployeeName"
+                       class="form-control" readonly>
+            </div>
+
+            <div class="mb-3 text-start">
+                <label for="assignmentProjectId" class="form-label">
+                    Project
+                </label>
+                <select name="project_id" id="assignmentProjectId"
+                        class="form-select" required>
+                    <option value="">Select a project</option>
+                    {% for project in projects %}
+                        <option value="{{ project.id }}">
+                            {{ project.name }} ({{ project.status }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3 text-start">
+                <label for="allocationPct" class="form-label">
+                    Allocation (%)
+                </label>
+                <input type="number" name="allocation_pct" id="allocationPct"
+                       class="form-control" min="1" max="100"
+                       value="50" required>
+                <div class="form-text">
+                    Percentage of the employee's working capacity allocated to this project.
+                </div>
+            </div>
+
+            <div class="mb-3 text-start">
+                <label for="assignmentStatus" class="form-label">
+                    Assignment status
+                </label>
+                <select name="status" id="assignmentStatus"
+                        class="form-select" required>
+                    {% for status in assignment_statuses %}
+                        <option value="{{ status }}"
+                            {% if status == "Active" %}selected{% endif %}>
+                            {{ status }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="custom-confirm-actions">
+                <button type="button" id="cancelAssignment"
+                        class="btn btn-outline-secondary">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    Save assignment
+                </button>
+            </div>
+        </form>
+        {% else %}
+            <p class="assignment-no-projects">
+                There are no available projects. Create a project first.
+            </p>
+            <a href="{{ url_for('new_project') }}" class="btn btn-primary">
+                Create project
+            </a>
+            <button type="button" id="closeAssignment"
+                    class="btn btn-outline-secondary">
+                Close
+            </button>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Progress bars.
+    document.querySelectorAll(".employee-progress-fill[data-width]")
+        .forEach(function (bar) {
+            const value = Number(bar.dataset.width);
+            bar.style.width = (
+                Number.isFinite(value)
+                    ? Math.max(0, Math.min(100, value))
+                    : 0
+            ) + "%";
+        });
+
+    // Employee search.
+    const searchInput = document.getElementById("employeeSearch");
+    const rows = document.querySelectorAll(".employee-row");
+    const noResults = document.getElementById("noSearchResults");
+
+    searchInput.addEventListener("input", function () {
+        const query = searchInput.value.toLowerCase().trim();
+        let visible = 0;
+
+        rows.forEach(function (row) {
+            const matches = row.textContent.toLowerCase().includes(query);
+            row.hidden = !matches;
+            if (matches) visible++;
+        });
+
+        noResults.hidden = visible > 0;
+    });
+
+    // Plain-JavaScript assignment dialog.
+    const dialog = document.getElementById("assignProjectDialog");
+    const cancel = document.getElementById("cancelAssignment");
+    const close = document.getElementById("closeAssignment");
+    let lastTrigger = null;
+
+    function closeDialog() {
+        if (!dialog) return;
+        dialog.hidden = true;
+        dialog.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("confirm-dialog-open");
+        if (lastTrigger) lastTrigger.focus();
+    }
+
+    document.querySelectorAll(".js-assign-project").forEach(function (button) {
+        button.addEventListener("click", function () {
+            lastTrigger = button;
+            document.getElementById("assignmentEmployeeId").value =
+                button.dataset.employeeId;
+            document.getElementById("assignmentEmployeeName").value =
+                button.dataset.employeeName;
+
+            dialog.hidden = false;
+            dialog.setAttribute("aria-hidden", "false");
+            document.body.classList.add("confirm-dialog-open");
+            document.getElementById("assignmentProjectId").focus();
+        });
+    });
+
+    if (cancel) cancel.addEventListener("click", closeDialog);
+    if (close) close.addEventListener("click", closeDialog);
+
+    if (dialog) {
+        dialog.addEventListener("click", function (event) {
+            if (event.target === dialog) closeDialog();
+        });
+    }
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && dialog && !dialog.hidden) {
+            closeDialog();
+        }
+    });
+});
+</script>
+
+{% endblock %}

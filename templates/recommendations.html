@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Team Recommendations{% endblock %}
+{% block page_heading %}Team Recommendations{% endblock %}
+{% block content %}
+<div class="employee-page">
+    <div class="employee-page-header">
+        <div>
+            <h2>Smart Team Recommendations</h2>
+            <p>Rank employees, compare their fit, and review team skill coverage.</p>
+        </div>
+    </div>
+
+    {% if message %}
+    <div class="panel-card">
+        <h5>Projects needed</h5>
+        <p class="mb-0">{{ message }}</p>
+        <a class="btn btn-primary mt-3" href="{{ url_for('new_project') }}">Create project</a>
+    </div>
+    {% elif selected_project %}
+    <div class="panel-card mb-4">
+        <form method="get" action="{{ url_for('team_recommendations') }}" class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label for="project_id" class="form-label fw-semibold">Choose project</label>
+                <select class="form-select" id="project_id" name="project_id">
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if project.id == selected_project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-primary w-100" type="submit">Generate recommendations</button>
+            </div>
+        </form>
+        <div class="row g-3 mt-2">
+            <div class="col-sm-4">
+                <div class="recommendation-stat">
+                    <span>Requested team size</span>
+                    <strong>{{ selected_project.team_size }}</strong>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="recommendation-stat">
+                    <span>Eligible candidates</span>
+                    <strong>{{ candidates|selectattr('eligible')|list|length }}</strong>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="recommendation-stat">
+                    <span>Recommended members</span>
+                    <strong>{{ recommended_team|length }}</strong>
+                </div>
+            </div>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+            Score weights: Skills 50% · Experience 20% · Capacity 20% · Availability 10%.
+            Recommendations are proposals only; no assignments are changed automatically.
+        </p>
+    </div>
+
+    <div class="panel-card mb-4">
+        <div class="panel-heading">
+            <div>
+                <h2>Recommended team</h2>
+                <p>Selection considers individual score and whether each person adds required skill coverage.</p>
+            </div>
+        </div>
+        {% if recommended_team %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr><th>Employee</th><th>Match score</th><th>Capacity left</th><th>Relevant skills</th></tr>
+                </thead>
+                <tbody>
+                    {% for person in recommended_team %}
+                    <tr>
+                        <td><strong>{{ person.name }}</strong><div class="table-subtext">{{ person.role }}</div></td>
+                        <td><span class="recommendation-score">{{ person.overall_score }}%</span></td>
+                        <td>{{ person.remaining_capacity }}%</td>
+                        <td>
+                            {% set matched = person.skill_explanations|select('string')|list %}
+                            {% for item in person.skill_explanations %}
+                                {% if not item.startswith('Missing ') %}
+                                <span class="skill-chip">{{ item }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="mb-0">No eligible employees found. Check experience, availability, and remaining capacity.</p>
+        {% endif %}
+        {% if recommended_team|length < selected_project.team_size %}
+        <div class="alert alert-warning mt-3 mb-0">
+            Only {{ recommended_team|length }} eligible team member(s) could be recommended for the requested
+            {{ selected_project.team_size }}. Review the candidate list or project requirements.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="panel-card mb-4">
+        <div class="panel-heading">
+            <div>
+                <h2>Team skill coverage</h2>
+                <p>Coverage is based on skills present in the recommended team.</p>
+            </div>
+        </div>
+        {% if team_coverage %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Required skill</th><th>Importance</th><th>Coverage</th><th>Team members with skill</th></tr></thead>
+                <tbody>
+                {% for item in team_coverage %}
+                    <tr>
+                        <td><strong>{{ item.skill_name }}</strong></td>
+                        <td>{{ item.importance }}</td>
+                        <td>
+                            {% if item.covered %}
+                            <span class="badge text-bg-success">Covered</span>
+                            <span class="table-subtext">Best proficiency {{ item.strongest_proficiency }}/5</span>
+                            {% else %}
+                            <span class="badge text-bg-danger">Gap</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.contributors|join(', ') if item.contributors else 'No recommended member' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="mb-0">No required skills have been added to this project yet.</p>
+        {% endif %}
+        {% if skill_gaps %}
+        <div class="alert alert-warning mb-0">
+            <strong>Uncovered skills:</strong> {{ skill_gaps|join(', ') }}.
+            Consider training or reviewing additional candidates.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="panel-card">
+        <div class="panel-heading">
+            <div>
+                <h2>Candidate ranking</h2>
+                <p>Each score is explainable and calculated from the current database records.</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr><th>Candidate</th><th>Total</th><th>Skills 50%</th><th>Experience 20%</th><th>Capacity 20%</th><th>Availability 10%</th><th>Assessment</th></tr>
+                </thead>
+                <tbody>
+                {% for person in candidates %}
+                    <tr>
+                        <td><strong>{{ person.name }}</strong><div class="table-subtext">{{ person.role }} · {{ person.experience_years }} years</div></td>
+                        <td><span class="recommendation-score">{{ person.overall_score }}%</span></td>
+                        <td>{{ person.skill_score }}%</td>
+                        <td>{{ person.experience_score }}%</td>
+                        <td>{{ person.capacity_score }}%</td>
+                        <td>{{ person.availability_score }}%</td>
+                        <td>
+                            {% if person.eligible %}
+                            <span class="badge text-bg-success">Eligible</span>
+                            {% else %}
+                            <span class="badge text-bg-secondary">Not eligible</span>
+                            {% endif %}
+                            <div class="table-subtext">{{ person.reasons|join(' · ') }}</div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">No employees found. Add employees first.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.recommendation-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 14px 16px;
+    background: #f6f8fc;
+    border: 1px solid #e5eaf2;
+    border-radius: 10px;
+}
+.recommendation-stat span { color: #718096; font-size: 12px; }
+.recommendation-stat strong { color: #172554; font-size: 24px; }
+.recommendation-score {
+    display: inline-block;
+    padding: 5px 9px;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 7px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+</style>
+{% endblock %}

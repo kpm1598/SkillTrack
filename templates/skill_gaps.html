@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Skill Gaps & Training{% endblock %}
+{% block page_heading %}Skill Gaps & Training{% endblock %}
+{% block content %}
+<div class="skill-gap-page">
+    <div class="skill-gap-page-header">
+        <div>
+            <h1>Skill Gaps &amp; Training</h1>
+            <p>Find missing or underdeveloped skills in a project's assigned team and discover relevant learning resources.</p>
+        </div>
+    </div>
+
+    {% if message %}
+    <section class="panel-card">
+        <h2 class="h5">Get started</h2>
+        <p class="mb-3">{{ message }}</p>
+        <a class="btn btn-primary" href="{{ url_for('new_project') }}">Create a project</a>
+    </section>
+    {% elif selected_project %}
+    <section class="panel-card skill-gap-filter">
+        <form method="get" action="{{ url_for('skill_gaps_training') }}" class="row g-3 align-items-end">
+            <div class="col-12 col-lg-8">
+                <label class="form-label" for="project_id">Select project</label>
+                <select class="form-select" id="project_id" name="project_id">
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if project.id == selected_project.id %}selected{% endif %}>
+                        {{ project.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-4">
+                <button class="btn btn-primary w-100" type="submit">Review skill gaps</button>
+            </div>
+        </form>
+        <div class="skill-gap-project-meta">
+            <span><strong>Project:</strong> {{ selected_project.name }}</span>
+            <span><strong>Assigned active members:</strong> {{ assigned_members|length }}</span>
+            <span><strong>Target team size:</strong> {{ selected_project.team_size }}</span>
+        </div>
+    </section>
+
+    <div class="skill-gap-summary">
+        <article class="skill-gap-summary-card">
+            <span>Required skills</span>
+            <strong>{{ skill_analysis|length }}</strong>
+        </article>
+        <article class="skill-gap-summary-card is-covered">
+            <span>Covered skills</span>
+            <strong>{{ covered_count }}</strong>
+        </article>
+        <article class="skill-gap-summary-card is-gap">
+            <span>Skills needing attention</span>
+            <strong>{{ gap_count }}</strong>
+        </article>
+    </div>
+
+    <section class="panel-card mb-4">
+        <div class="panel-heading">
+            <div>
+                <h2>Skill coverage assessment</h2>
+                <p>A skill is covered when at least one active assigned team member has proficiency 3/5 or higher.</p>
+            </div>
+        </div>
+
+        {% if skill_analysis %}
+        <div class="skill-gap-list">
+            {% for item in skill_analysis %}
+            <article class="skill-gap-item">
+                <div class="skill-gap-item-main">
+                    <div class="skill-gap-title-row">
+                        <h3>{{ item.skill_name }}</h3>
+                        <span class="skill-gap-importance importance-{{ item.importance|lower }}">{{ item.importance }}</span>
+                    </div>
+                    <p class="skill-gap-status-text">{{ item.status_detail }}</p>
+                    {% if item.holders %}
+                    <div class="skill-gap-holders">
+                        {% for holder in item.holders %}
+                        <span class="skill-gap-holder">{{ holder.name }} <strong>{{ holder.proficiency }}/5</strong></span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="skill-gap-no-holder">No currently assigned member has this skill.</p>
+                    {% endif %}
+                </div>
+                <div class="skill-gap-item-status">
+                    {% if item.status == "Covered" %}
+                    <span class="skill-gap-status status-covered">Covered</span>
+                    {% elif item.status == "Needs improvement" %}
+                    <span class="skill-gap-status status-improve">Needs improvement</span>
+                    {% else %}
+                    <span class="skill-gap-status status-missing">Missing</span>
+                    {% endif %}
+                    {% if item.best_proficiency %}
+                    <span class="skill-gap-best">Best: {{ item.best_proficiency }}/5</span>
+                    {% endif %}
+                </div>
+                <div class="skill-gap-resources">
+                    <h4>Training resources</h4>
+                    {% if item.resources %}
+                    <ul>
+                        {% for resource in item.resources %}
+                        <li>
+                            {% if resource.resource_url %}
+                            <a href="{{ resource.resource_url }}" target="_blank" rel="noopener noreferrer">{{ resource.course_title }}</a>
+                            {% else %}
+                            <span>{{ resource.course_title }}</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="skill-gap-no-resource">No training resource is currently registered for this exact skill. Add one to the training table to show it here.</p>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="skill-gap-empty">
+            <h3>No project skills configured</h3>
+            <p>Add required skills to this project first. Skill gap analysis is based on the project's saved requirements.</p>
+            <a class="btn btn-outline-primary" href="{{ url_for('edit_project', project_id=selected_project.id) }}">Edit project requirements</a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="panel-card">
+        <div class="panel-heading">
+            <div>
+                <h2>Assigned project team</h2>
+                <p>Only active assignments are included in this gap analysis. Recommendations alone do not count as assignments.</p>
+            </div>
+        </div>
+        {% if assigned_members %}
+        <div class="table-responsive skill-gap-table-wrap">
+            <table class="table align-middle skill-gap-team-table">
+                <thead><tr><th>Employee</th><th>Role</th><th>Allocation</th></tr></thead>
+                <tbody>
+                {% for member in assigned_members %}
+                    <tr>
+                        <td><strong>{{ member.name }}</strong></td>
+                        <td>{{ member.role }}</td>
+                        <td>{{ member.allocation_pct }}%</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="skill-gap-empty compact">
+            <p class="mb-0">No active team members are assigned to this project yet. Assign employees from the Employees page to assess the team's actual skill coverage.</p>
+            <a class="btn btn-outline-primary mt-3" href="{{ url_for('employees_page') }}">Go to employees</a>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+
+<style>
+.skill-gap-page { width: 100%; min-width: 0; }
+.skill-gap-page-header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; flex-wrap:wrap; margin-bottom:24px; }
+.skill-gap-page-header h1 { margin:0 0 8px; color:#172554; font-size:clamp(24px, 3vw, 30px); font-weight:750; }
+.skill-gap-page-header p { max-width:800px; margin:0; color:#64748b; line-height:1.65; }
+.skill-gap-filter { margin-bottom:20px; }
+.skill-gap-filter .form-label { font-weight:650; color:#334155; }
+.skill-gap-project-meta { display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:18px; color:#64748b; font-size:13px; }
+.skill-gap-project-meta strong { color:#334155; }
+.skill-gap-summary { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:15px; margin-bottom:22px; }
+.skill-gap-summary-card { display:flex; flex-direction:column; gap:7px; padding:18px 20px; background:#fff; border:1px solid #e5eaf2; border-radius:13px; }
+.skill-gap-summary-card span { color:#64748b; font-size:13px; }
+.skill-gap-summary-card strong { color:#172554; font-size:27px; }
+.skill-gap-summary-card.is-covered strong { color:#13845b; }
+.skill-gap-summary-card.is-gap strong { color:#c2414b; }
+.skill-gap-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:15px; }
+.skill-gap-item { min-width:0; padding:18px; border:1px solid #e6ebf3; border-radius:12px; background:#fff; }
+.skill-gap-item-main { min-width:0; }
+.skill-gap-title-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.skill-gap-title-row h3 { margin:0; color:#172554; font-size:17px; font-weight:750; overflow-wrap:anywhere; }
+.skill-gap-importance { display:inline-flex; padding:4px 8px; border-radius:20px; font-size:10px; font-weight:700; }
+.importance-essential { color:#b42332; background:#ffeaec; }
+.importance-high { color:#946200; background:#fff3d3; }
+.importance-preferred { color:#2563a5; background:#e6f3ff; }
+.skill-gap-status-text { margin:9px 0 12px; color:#64748b; font-size:12px; line-height:1.6; }
+.skill-gap-holders { display:flex; flex-wrap:wrap; gap:6px; }
+.skill-gap-holder { display:inline-flex; flex-wrap:wrap; gap:5px; padding:5px 8px; color:#3158a5; background:#eef4ff; border:1px solid #dce8ff; border-radius:7px; font-size:11px; }
+.skill-gap-holder strong { white-space:nowrap; }
+.skill-gap-no-holder, .skill-gap-no-resource { color:#8a5260; font-size:12px; line-height:1.6; }
+.skill-gap-item-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:15px; }
+.skill-gap-status { display:inline-flex; padding:5px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+.status-covered { color:#13784f; background:#e8f8ef; }
+.status-improve { color:#946200; background:#fff3d3; }
+.status-missing { color:#b42332; background:#ffeaec; }
+.skill-gap-best { color:#64748b; font-size:11px; }
+.skill-gap-resources { padding-top:14px; margin-top:15px; border-top:1px solid #edf0f6; }
+.skill-gap-resources h4 { margin:0 0 8px; color:#334155; font-size:12px; font-weight:750; }
+.skill-gap-resources ul { padding-left:18px; margin:0; }
+.skill-gap-resources li { margin:5px 0; color:#64748b; font-size:12px; overflow-wrap:anywhere; }
+.skill-gap-resources a { color:#2563eb; text-decoration:underline; text-underline-offset:2px; }
+.skill-gap-empty { padding:28px 10px; text-align:center; }
+.skill-gap-empty h3 { color:#172554; font-size:18px; font-weight:750; }
+.skill-gap-empty p { color:#64748b; line-height:1.65; }
+.skill-gap-empty.compact { padding:18px 8px; }
+.skill-gap-team-table { min-width:0; }
+@media (max-width: 900px) {
+    .skill-gap-list { grid-template-columns:minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+    .skill-gap-summary { grid-template-columns:minmax(0, 1fr); gap:10px; }
+    .skill-gap-summary-card { padding:14px 16px; }
+    .skill-gap-summary-card strong { font-size:23px; }
+    .skill-gap-item { padding:15px; }
+    .skill-gap-project-meta { flex-direction:column; gap:7px; }
+    .skill-gap-page .panel-card { padding:16px; }
+}
+</style>
+{% endblock %}

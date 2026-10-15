@@ -1,0 +1,356 @@
+
+{% extends "base.html" %}
+
+{% block title %}
+    {{ "Edit Project" if project else "Create Project" }} | SkillTrack
+{% endblock %}
+
+{% block page_heading %}{{ "Edit Project" if project else "Create Project" }}{% endblock %}
+
+{% block content %}
+
+<div class="project-form-page">
+
+    <div class="welcome-row project-form-header">
+        <div>
+            <h1>{{ "Edit project" if project else "Create a project" }}</h1>
+            <p>
+                Define the project details, team requirements and essential skills.
+            </p>
+        </div>
+
+        <a href="{{ url_for('projects_page') }}"
+           class="btn btn-outline-secondary">
+            ← Back to Projects
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show"
+                     role="alert">
+                    {{ message }}
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('save_project') }}"
+          id="projectForm">
+
+        <input type="hidden"
+               name="project_id"
+               value="{{ project.id if project else '' }}">
+
+        <!-- Basic information -->
+        <div class="panel-card project-form-section">
+            <div class="project-form-section-heading">
+                <span class="project-form-step">01</span>
+                <div>
+                    <h2>Project information</h2>
+                    <p>Enter the main details of this project.</p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="name" class="form-label">
+                    Project name <span class="text-danger">*</span>
+                </label>
+
+                <input type="text"
+                       class="form-control"
+                       id="name"
+                       name="name"
+                       maxlength="150"
+                       placeholder="e.g. Customer Analytics Platform"
+                       value="{{ project.name if project else '' }}"
+                       required>
+            </div>
+
+            <div class="mb-4">
+                <label for="description" class="form-label">
+                    Description
+                </label>
+
+                <textarea class="form-control"
+                          id="description"
+                          name="description"
+                          rows="4"
+                          maxlength="2000"
+                          placeholder="Describe the project goals and deliverables...">{{ project.description if project else '' }}</textarea>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label for="status" class="form-label">Project status</label>
+
+                    <select class="form-select" id="status" name="status" required>
+                        {% for status_option in statuses %}
+                            <option value="{{ status_option }}"
+                                {% if project and project.status == status_option %}
+                                    selected
+                                {% elif not project and status_option == "Planning" %}
+                                    selected
+                                {% endif %}>
+                                {{ status_option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="duration_weeks" class="form-label">
+                        Duration (weeks)
+                    </label>
+
+                    <input type="number"
+                           class="form-control"
+                           id="duration_weeks"
+                           name="duration_weeks"
+                           min="1"
+                           max="520"
+                           value="{{ project.duration_weeks if project else 4 }}"
+                           required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team requirements -->
+        <div class="panel-card project-form-section">
+            <div class="project-form-section-heading">
+                <span class="project-form-step">02</span>
+                <div>
+                    <h2>Team requirements</h2>
+                    <p>Set the target team size and minimum experience.</p>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label for="team_size" class="form-label">
+                        Required team members
+                    </label>
+
+                    <input type="number"
+                           class="form-control"
+                           id="team_size"
+                           name="team_size"
+                           min="1"
+                           max="500"
+                           value="{{ project.team_size if project else 3 }}"
+                           required>
+
+                    <div class="form-text">
+                        Number of employees you want on this project.
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label for="min_experience" class="form-label">
+                        Minimum experience (years)
+                    </label>
+
+                    <input type="number"
+                           class="form-control"
+                           id="min_experience"
+                           name="min_experience"
+                           min="0"
+                           max="100"
+                           step="0.5"
+                           value="{{ project.min_experience if project else 0 }}"
+                           required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Required skills -->
+        <div class="panel-card project-form-section">
+            <div class="project-form-section-heading project-skills-heading">
+                <span class="project-form-step">03</span>
+
+                <div>
+                    <h2>Required skills</h2>
+                    <p>
+                        Add skills and specify how important each one is.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        id="addSkillButton">
+                    + Add skill
+                </button>
+            </div>
+
+            <div class="project-skill-form-labels">
+                <span>Skill name</span>
+                <span>Importance</span>
+                <span>Action</span>
+            </div>
+
+            <div id="projectSkillsContainer">
+
+                {% for skill in skills %}
+                    <div class="project-skill-row">
+                        <input type="text"
+                               name="skill_name[]"
+                               class="form-control"
+                               maxlength="100"
+                               placeholder="e.g. Python"
+                               value="{{ skill.skill_name }}">
+
+                        <select name="importance[]"
+                                class="form-select">
+                            {% for importance in importance_options %}
+                                <option value="{{ importance }}"
+                                    {% if skill.importance == importance %}
+                                        selected
+                                    {% endif %}>
+                                    {{ importance }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="button"
+                                class="btn remove-skill-button"
+                                aria-label="Remove skill">
+                            Remove
+                        </button>
+                    </div>
+                {% endfor %}
+
+                {% if not skills %}
+                    <div class="project-skill-row">
+                        <input type="text"
+                               name="skill_name[]"
+                               class="form-control"
+                               maxlength="100"
+                               placeholder="e.g. Python">
+
+                        <select name="importance[]" class="form-select">
+                            {% for importance in importance_options %}
+                                <option value="{{ importance }}"
+                                    {% if importance == "Essential" %}
+                                        selected
+                                    {% endif %}>
+                                    {{ importance }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="button"
+                                class="btn remove-skill-button"
+                                aria-label="Remove skill">
+                            Remove
+                        </button>
+                    </div>
+                {% endif %}
+
+            </div>
+
+            <div class="project-skill-help">
+                <strong>Essential:</strong> must-have skill.
+                <strong>High:</strong> strongly preferred.
+                <strong>Preferred:</strong> useful but optional.
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="project-form-actions">
+            <a href="{{ url_for('projects_page') }}"
+               class="btn btn-outline-secondary">
+                Cancel
+            </a>
+
+            <button type="submit" class="btn btn-primary">
+                {{ "Save Changes" if project else "Create Project" }}
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const container = document.getElementById("projectSkillsContainer");
+    const addButton = document.getElementById("addSkillButton");
+
+    function createSkillRow() {
+        const row = document.createElement("div");
+        row.className = "project-skill-row";
+
+        const skillInput = document.createElement("input");
+        skillInput.type = "text";
+        skillInput.name = "skill_name[]";
+        skillInput.className = "form-control";
+        skillInput.maxLength = 100;
+        skillInput.placeholder = "e.g. Python";
+
+        const importanceSelect = document.createElement("select");
+        importanceSelect.name = "importance[]";
+        importanceSelect.className = "form-select";
+
+        ["Essential", "High", "Preferred"].forEach(function (level) {
+            const option = document.createElement("option");
+            option.value = level;
+            option.textContent = level;
+
+            if (level === "Essential") {
+                option.selected = true;
+            }
+
+            importanceSelect.appendChild(option);
+        });
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "btn remove-skill-button";
+        removeButton.textContent = "Remove";
+        removeButton.setAttribute("aria-label", "Remove skill");
+
+        row.appendChild(skillInput);
+        row.appendChild(importanceSelect);
+        row.appendChild(removeButton);
+
+        return row;
+    }
+
+    addButton.addEventListener("click", function () {
+        container.appendChild(createSkillRow());
+
+        const inputs = container.querySelectorAll(
+            'input[name="skill_name[]"]'
+        );
+
+        inputs[inputs.length - 1].focus();
+    });
+
+    container.addEventListener("click", function (event) {
+        const removeButton = event.target.closest(".remove-skill-button");
+
+        if (!removeButton) {
+            return;
+        }
+
+        const rows = container.querySelectorAll(".project-skill-row");
+
+        if (rows.length <= 1) {
+            rows[0].querySelector('input[name="skill_name[]"]').value = "";
+            rows[0].querySelector('select[name="importance[]"]').value =
+                "Essential";
+            return;
+        }
+
+        removeButton.closest(".project-skill-row").remove();
+    });
+
+});
+</script>
+
+{% endblock %}

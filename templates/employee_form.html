@@ -1,0 +1,117 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_heading %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="welcome-row">
+    <div>
+        <h1>{{ page_title }}</h1>
+        <p>Maintain employee skills, experience and workforce capacity.</p>
+    </div>
+    <a href="{{ url_for('employees_page') }}" class="btn btn-outline-secondary">
+        Cancel
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"
+                        aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="panel-card employee-form-card">
+    <form method="POST">
+        <h2 class="form-section-title">Employee information</h2>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label for="name" class="form-label">Full name *</label>
+                <input
+                    id="name" name="name" class="form-control"
+                    maxlength="100" required
+                    value="{{ employee.name if employee else '' }}"
+                    placeholder="e.g. Aarav Sharma">
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label for="role" class="form-label">Job role *</label>
+                <input
+                    id="role" name="role" class="form-control"
+                    maxlength="100" required
+                    value="{{ employee.role if employee else '' }}"
+                    placeholder="e.g. Python Developer">
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label for="experience_years" class="form-label">Experience (years)</label>
+                <input
+                    id="experience_years" name="experience_years"
+                    type="number" class="form-control"
+                    min="0" max="60" step="0.5" required
+                    value="{{ employee.experience_years if employee else 0 }}">
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label for="availability_pct" class="form-label">Availability (%)</label>
+                <input
+                    id="availability_pct" name="availability_pct"
+                    type="number" class="form-control"
+                    min="0" max="100" required
+                    value="{{ employee.availability_pct if employee else 100 }}">
+                <div class="form-text">Capacity currently available for new work.</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label for="workload_pct" class="form-label">Current workload (%)</label>
+                <input
+                    id="workload_pct" name="workload_pct"
+                    type="number" class="form-control"
+                    min="0" max="100" required
+                    value="{{ employee.workload_pct if employee else 0 }}">
+                <div class="form-text">Capacity already committed to existing work.</div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h2 class="form-section-title">Technical skills</h2>
+        <p class="text-secondary small">
+            Enter skills separated by commas. Add a proficiency from 1 to 5
+            after a colon. If omitted, proficiency defaults to 3.
+        </p>
+
+        <label for="skills" class="form-label">Skills and proficiency</label>
+        <textarea
+            id="skills" name="skills" class="form-control"
+            rows="4" placeholder="Python:5, SQL:4, Flask:3"
+        >{% if skills %}{{ skills|map(attribute='skill_name')|join(', ') }}{% endif %}</textarea>
+
+        {% if skills %}
+            <div class="form-text">
+                Current proficiencies:
+                {% for skill in skills %}
+                    {{ skill.skill_name }} ({{ skill.proficiency }}/5){% if not loop.last %}; {% endif %}
+                {% endfor %}
+                <br>When editing, include the proficiency after each skill name to retain it.
+            </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <a href="{{ url_for('employees_page') }}" class="btn btn-outline-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                Save employee
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

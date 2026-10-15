@@ -1,0 +1,210 @@
+
+{% extends "base.html" %}
+
+{% block title %}Projects | SkillTrack{% endblock %}
+{% block page_heading %}Projects{% endblock %}
+
+{% block content %}
+
+<div class="welcome-row project-page-header">
+    <div>
+        <h1>Project portfolio</h1>
+        <p>Manage projects, required skills and workforce staffing.</p>
+    </div>
+    <a href="{{ url_for('new_project') }}" class="btn btn-primary">
+        + Create Project
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show"
+                 role="alert">
+                {{ message }}
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row g-4">
+    {% for project in projects %}
+        {% set staffing_pct = (project.assigned_count * 100 / project.team_size)|int if project.team_size > 0 else 0 %}
+        {% set staffing_pct = [staffing_pct, 100]|min %}
+
+        <div class="col-12 col-xl-6">
+            <div class="panel-card project-card project-management-card">
+                <div class="project-card-top">
+                    <span class="project-icon" aria-hidden="true">▣</span>
+                    <span class="status-badge status-{{ project.status|lower }}">
+                        {{ project.status }}
+                    </span>
+                </div>
+
+                <h2>{{ project.name }}</h2>
+                <p>{{ project.description or "No description provided." }}</p>
+
+                <div class="project-facts">
+                    <div><span>Team size</span><strong>{{ project.team_size }}</strong></div>
+                    <div><span>Assigned</span><strong>{{ project.assigned_count }}</strong></div>
+                    <div><span>Duration</span><strong>{{ project.duration_weeks }} weeks</strong></div>
+                    <div><span>Minimum experience</span><strong>{{ project.min_experience }} years</strong></div>
+                </div>
+
+                <div class="project-required-skills">
+                    <div class="project-section-label">Required skills</div>
+                    {% set skills = project_skills.get(project.id, []) %}
+
+                    {% if skills %}
+                        <div class="project-skill-list">
+                            {% for skill in skills %}
+                                <span class="project-skill-tag">
+                                    {{ skill.skill_name }}
+                                    <span class="skill-priority priority-{{ skill.importance|lower }}">
+                                        {{ skill.importance }}
+                                    </span>
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="project-no-skills">No skills defined yet.</p>
+                    {% endif %}
+                </div>
+
+                <div class="project-staffing">
+                    <div class="project-info">
+                        <strong>Staffing progress</strong>
+                        <span>{{ project.assigned_count }} / {{ project.team_size }}</span>
+                    </div>
+                    <div class="progress project-progress"
+                         role="progressbar"
+                         aria-valuenow="{{ staffing_pct }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="progress-bar" data-width="{{ staffing_pct }}"></div>
+                    </div>
+                    <div class="staffing-caption">{{ staffing_pct }}% of target team size</div>
+                </div>
+
+                <div class="project-card-actions">
+                    <a href="{{ url_for('edit_project', project_id=project.id) }}"
+                       class="btn btn-outline-primary">
+                        Edit project
+                    </a>
+
+                    <button type="button"
+                            class="btn btn-outline-danger js-delete-project"
+                            data-project-name="{{ project.name }}"
+                            data-delete-url="{{ url_for('delete_project', project_id=project.id) }}">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="col-12">
+            <div class="panel-card project-empty-state">
+                <h2>No projects yet</h2>
+                <p>Create your first project and define its required skills.</p>
+                <a href="{{ url_for('new_project') }}" class="btn btn-primary">
+                    + Create Project
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Custom confirmation dialog; does not depend on Bootstrap modal JS -->
+<div id="projectDeleteDialog"
+     class="custom-confirm-backdrop"
+     hidden
+     aria-hidden="true">
+
+    <section class="custom-confirm-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="projectDeleteTitle">
+
+        <div class="custom-confirm-icon">!</div>
+
+        <h2 id="projectDeleteTitle">Delete project?</h2>
+
+        <p>
+            You're about to permanently delete
+            <strong id="projectDeleteName">this project</strong>.
+        </p>
+
+        <div class="custom-confirm-warning">
+            Its required skills and related assignment records may also be deleted.
+            This action cannot be undone.
+        </div>
+
+        <form id="projectDeleteForm" method="POST" action="">
+            <div class="custom-confirm-actions">
+                <button type="button" id="cancelProjectDelete"
+                        class="btn btn-outline-secondary">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-danger">
+                    Delete project
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".project-progress .progress-bar[data-width]")
+        .forEach(function (bar) {
+            const value = Number(bar.dataset.width);
+            const percentage = Number.isFinite(value)
+                ? Math.max(0, Math.min(100, value))
+                : 0;
+            bar.style.width = percentage + "%";
+        });
+
+    const dialog = document.getElementById("projectDeleteDialog");
+    const form = document.getElementById("projectDeleteForm");
+    const name = document.getElementById("projectDeleteName");
+    const cancel = document.getElementById("cancelProjectDelete");
+    let lastTrigger = null;
+
+    function closeDialog() {
+        dialog.hidden = true;
+        dialog.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("confirm-dialog-open");
+        if (lastTrigger) lastTrigger.focus();
+    }
+
+    document.querySelectorAll(".js-delete-project").forEach(function (button) {
+        button.addEventListener("click", function () {
+            lastTrigger = button;
+            name.textContent = button.dataset.projectName || "this project";
+            form.action = button.dataset.deleteUrl || "";
+            dialog.hidden = false;
+            dialog.setAttribute("aria-hidden", "false");
+            document.body.classList.add("confirm-dialog-open");
+            cancel.focus();
+        });
+    });
+
+    cancel.addEventListener("click", closeDialog);
+
+    dialog.addEventListener("click", function (event) {
+        if (event.target === dialog) closeDialog();
+    });
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && !dialog.hidden) closeDialog();
+    });
+
+    form.addEventListener("submit", function (event) {
+        if (!form.action) event.preventDefault();
+    });
+});
+</script>
+
+{% endblock %}

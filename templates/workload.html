@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Workload & Capacity{% endblock %}
+{% block page_heading %}Workload & Capacity{% endblock %}
+{% block content %}
+<div class="workload-page">
+  <div class="feature-page-header">
+    <div><h1>Workload &amp; Capacity</h1><p>Review employee commitments, remaining capacity and availability before planning new work.</p></div>
+  </div>
+
+  <div class="feature-stats-grid">
+    <article class="feature-stat"><span>Employees tracked</span><strong>{{ employees|length }}</strong></article>
+    <article class="feature-stat"><span>Available capacity</span><strong>{{ available_count }}</strong><small>Employees with more than 20% usable capacity</small></article>
+    <article class="feature-stat stat-warning"><span>Overloaded</span><strong>{{ overloaded_count }}</strong><small>90% or more committed workload</small></article>
+    <article class="feature-stat"><span>Total usable capacity</span><strong>{{ total_usable_capacity }}%</strong><small>Approximate combined headroom</small></article>
+  </div>
+
+  <section class="panel-card mb-4">
+    <div class="panel-heading"><div><h2>Employee capacity overview</h2><p>Committed workload uses the higher of recorded workload and active assignment allocations to avoid double-counting.</p></div></div>
+    <div class="table-responsive">
+      <table class="table align-middle workload-table">
+        <thead><tr><th>Employee</th><th>Recorded workload</th><th>Active allocations</th><th>Availability</th><th>Usable capacity</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for person in employees %}
+          <tr>
+            <td><strong>{{ person.name }}</strong><div class="table-subtext">{{ person.role }}</div></td>
+            <td>{{ person.workload_pct }}%</td>
+            <td>{{ person.allocated_pct }}%</td>
+            <td>{{ person.availability_pct }}%</td>
+            <td><div class="capacity-cell"><strong>{{ person.usable_capacity }}%</strong><div class="capacity-track"><span style="width: {{ person.usable_capacity }}%"></span></div></div></td>
+            <td>{% if person.status == "Overloaded" %}<span class="badge text-bg-danger">Overloaded</span>{% elif person.status == "Limited capacity" %}<span class="badge text-bg-warning">Limited</span>{% else %}<span class="badge text-bg-success">Available</span>{% endif %}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="text-center py-4">Add employees to view capacity.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel-card">
+    <div class="panel-heading"><div><h2>Project staffing watch</h2><p>Projects below target team size may need additional team members.</p></div></div>
+    <div class="staffing-cards">
+      {% for project in projects %}
+      <article class="staffing-card">
+        <div><strong>{{ project.name }}</strong><span>{{ project.assigned_count }} / {{ project.team_size }} members</span></div>
+        {% set percent = (project.assigned_count * 100 / project.team_size)|round|int if project.team_size else 0 %}
+        <div class="capacity-track"><span style="width: {{ [percent, 100]|min }}%"></span></div>
+        {% if project.assigned_count < project.team_size %}<small class="text-muted">Needs {{ project.team_size - project.assigned_count }} more member(s)</small>{% else %}<small class="text-success">Target team size reached</small>{% endif %}
+      </article>
+      {% else %}
+      <p class="mb-0">No active projects found.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+<style>
+.workload-page{width:100%;min-width:0}.feature-page-header{margin-bottom:22px}.feature-page-header h1{font-size:clamp(24px,3vw,30px);font-weight:750;color:#172554;margin:0 0 8px}.feature-page-header p{color:#64748b;line-height:1.6;margin:0}.feature-stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}.feature-stat{background:#fff;border:1px solid #e5eaf2;border-radius:13px;padding:18px;display:flex;flex-direction:column;gap:6px;min-width:0}.feature-stat span{font-size:12px;color:#64748b}.feature-stat strong{font-size:26px;color:#172554}.feature-stat small{font-size:11px;color:#64748b;line-height:1.5}.feature-stat.stat-warning strong{color:#c2414b}.workload-table{min-width:700px}.capacity-cell{min-width:90px}.capacity-track{width:100%;height:8px;background:#edf1f7;border-radius:20px;overflow:hidden;margin:7px 0}.capacity-track span{display:block;height:100%;background:#3478f6;border-radius:20px}.staffing-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.staffing-card{border:1px solid #e6ebf3;border-radius:11px;padding:15px;min-width:0}.staffing-card>div:first-child{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.staffing-card strong{color:#172554;overflow-wrap:anywhere}.staffing-card span{font-size:12px;color:#64748b;white-space:nowrap}@media(max-width:900px){.feature-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staffing-cards{grid-template-columns:1fr}}@media(max-width:500px){.feature-stats-grid{grid-template-columns:1fr 1fr;gap:9px}.feature-stat{padding:13px}.feature-stat strong{font-size:22px}.workload-page .panel-card{padding:15px}}
+</style>
+{% endblock %}
